@@ -19,3 +19,7 @@ build/
 # IDE
 .vscode/
 .idea/
+
+# temp
+tmp_ingest_odds.txt
+

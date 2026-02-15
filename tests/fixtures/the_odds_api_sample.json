@@ -1,1 +1,30 @@
-﻿[]
+﻿[
+  {
+    "id": "game_1",
+    "commence_time": "2026-02-20T09:00:00Z",
+    "home_team": "Boston Celtics",
+    "away_team": "Miami Heat",
+    "bookmakers": [
+      {
+        "key": "sportsbet",
+        "title": "Sportsbet",
+        "markets": [
+          {
+            "key": "h2h",
+            "outcomes": [
+              { "name": "Boston Celtics", "price": 1.85 },
+              { "name": "Miami Heat", "price": 2.00 }
+            ]
+          },
+          {
+            "key": "totals",
+            "outcomes": [
+              { "name": "Over", "price": 1.90, "point": 221.5 },
+              { "name": "Under", "price": 1.90, "point": 221.5 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
