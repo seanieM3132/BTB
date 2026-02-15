@@ -74,7 +74,39 @@ def _recent_form(session, player_id: int, as_of_date: datetime.date, n: int = 5)
     }
 
 
+def _edge_signal(prop_type: str, line: float, recent_avg: float | None) -> Dict[str, Any]:
+    if recent_avg is None:
+        return {"edge": None, "bias": None, "confidence": None}
+
+    edge = round(recent_avg - line, 2)
+
+    if edge > 0:
+        bias = "over"
+    elif edge < 0:
+        bias = "under"
+    else:
+        bias = "neutral"
+
+    if abs(edge) >= 3:
+        confidence = "high"
+    elif abs(edge) >= 1.5:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    return {"edge": edge, "bias": bias, "confidence": confidence}
+
+
 def get_player_prop_research(player_name: str, game_date: datetime.date) -> Dict[str, Any]:
+    """
+    v1 research bundle:
+    - resolve player
+    - find a game on date (simple approach)
+    - pull props rows for that game+player across books
+    - pull main odds rows for that game (if present)
+    - add recent form from stats_player_game
+    - add a simple v1 edge signal (recent_avg - line)
+    """
     session = get_session()
 
     player = session.query(Player).filter(Player.full_name == player_name).first()
@@ -92,6 +124,8 @@ def get_player_prop_research(player_name: str, game_date: datetime.date) -> Dict
         if pm:
             game = session.query(Game).filter(Game.id == pm.game_id).first()
 
+    recent = _recent_form(session, player.id, game_date)
+
     if not game:
         return {
             "ok": True,
@@ -99,7 +133,7 @@ def get_player_prop_research(player_name: str, game_date: datetime.date) -> Dict
             "game": None,
             "props": [],
             "main_odds": [],
-            "recent_form": _recent_form(session, player.id, game_date),
+            "recent_form": recent,
         }
 
     home = _team_name(session, game.home_team_id)
@@ -112,20 +146,39 @@ def get_player_prop_research(player_name: str, game_date: datetime.date) -> Dict
         .all()
     )
 
-    props_out = []
+    # FULL rewritten props loop (no in-file edits required elsewhere)
+    props_out: List[Dict[str, Any]] = []
+    avg_map = recent.get("avg", {}) if isinstance(recent, dict) else {}
+
     for p in props:
+        prop_type = str(p.prop_type)
+        line = float(p.line)
+        price = float(p.price)
+        book_code = _book_code(session, p.book_id)
+
+        # Map prop_type -> recent average (v1 supports points/rebounds/assists)
+        recent_avg = None
+        if prop_type in avg_map:
+            recent_avg = avg_map.get(prop_type)
+
+        signal = _edge_signal(prop_type, line, recent_avg)
+
         props_out.append(
             {
-                "book": _book_code(session, p.book_id),
-                "prop_type": p.prop_type,
-                "line": float(p.line),
-                "price": float(p.price),
+                "book": book_code,
+                "prop_type": prop_type,
+                "line": line,
+                "price": price,
+                "recent_avg": recent_avg,
+                "edge": signal["edge"],
+                "bias": signal["bias"],
+                "confidence": signal["confidence"],
                 "source": p.source,
             }
         )
 
     main = session.query(OddsMarket).filter(OddsMarket.game_id == game.id).all()
-    main_out = []
+    main_out: List[Dict[str, Any]] = []
     for m in main:
         main_out.append(
             {
@@ -151,5 +204,5 @@ def get_player_prop_research(player_name: str, game_date: datetime.date) -> Dict
         },
         "props": props_out,
         "main_odds": main_out,
-        "recent_form": _recent_form(session, player.id, game_date),
+        "recent_form": recent,
     }
