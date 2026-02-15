@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Any, Optional
 
+from sqlalchemy import and_
+
 from btb.db.connection import get_session
 from btb.db.schema import Book, Game, League, Player, PropsMarket, Season, Team
 
@@ -94,19 +96,34 @@ def _get_or_create_player(session, full_name: str, external_id: Optional[str] = 
     return player
 
 
+def _props_row_exists(session, game_id: int, player_id: int, book_id: int, prop_type: str, line: float, price: float) -> bool:
+    existing = (
+        session.query(PropsMarket.id)
+        .filter(
+            and_(
+                PropsMarket.game_id == game_id,
+                PropsMarket.player_id == player_id,
+                PropsMarket.book_id == book_id,
+                PropsMarket.prop_type == prop_type,
+                PropsMarket.line == float(line),
+                PropsMarket.price == float(price),
+            )
+        )
+        .first()
+    )
+    return existing is not None
+
+
 def normalize_props_fixture(payload: dict[str, Any]) -> dict[str, Any]:
     """
-    Normalize a generic props fixture payload into PropsMarket rows.
+    Normalize a generic props fixture payload into PropsMarket rows (idempotent).
 
-    Expected fixture structure (minimal):
+    Fixture structure:
     {
       "game": {"id": "...", "commence_time":"...Z", "home_team":"...", "away_team":"..."},
       "book": {"key":"sportsbet","title":"Sportsbet"},
       "league": "NBA",
-      "props": [
-        {"player":"Jayson Tatum","prop_type":"points","line":28.5,"price":1.90},
-        ...
-      ]
+      "props": [{"player":"...","prop_type":"points","line":28.5,"price":1.90}, ...]
     }
     """
     session = get_session()
@@ -125,7 +142,8 @@ def normalize_props_fixture(payload: dict[str, Any]) -> dict[str, Any]:
     game = _get_or_create_game(session, game_external_id, home_team, away_team, commence_time, league_code=league_code)
     book = _get_or_create_book(session, str(book_obj.get("key") or "unknown"), str(book_obj.get("title") or "Unknown"))
 
-    rows_created = 0
+    created = 0
+    skipped_duplicates = 0
     players_seen: set[str] = set()
 
     for p in props:
@@ -135,6 +153,7 @@ def normalize_props_fixture(payload: dict[str, Any]) -> dict[str, Any]:
         prop_type = str(p.get("prop_type") or "").strip().lower()
         if not prop_type:
             continue
+
         line = p.get("line")
         price = p.get("price")
         if line is None or price is None:
@@ -143,22 +162,28 @@ def normalize_props_fixture(payload: dict[str, Any]) -> dict[str, Any]:
         player = _get_or_create_player(session, player_name)
         players_seen.add(player.full_name)
 
-        row = PropsMarket(
-            game_id=game.id,
-            player_id=player.id,
-            book_id=book.id,
-            prop_type=prop_type,
-            line=float(line),
-            price=float(price),
-            source="fixture",
+        if _props_row_exists(session, game.id, player.id, book.id, prop_type, float(line), float(price)):
+            skipped_duplicates += 1
+            continue
+
+        session.add(
+            PropsMarket(
+                game_id=game.id,
+                player_id=player.id,
+                book_id=book.id,
+                prop_type=prop_type,
+                line=float(line),
+                price=float(price),
+                source="fixture",
+            )
         )
-        session.add(row)
-        rows_created += 1
+        created += 1
 
     session.commit()
 
     return {
-        "props_created": rows_created,
+        "props_created": created,
+        "props_skipped_duplicates": skipped_duplicates,
         "players_seen": sorted(list(players_seen)),
         "book": book.code,
         "game_external_id": game.external_id,
