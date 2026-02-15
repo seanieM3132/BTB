@@ -209,3 +209,28 @@ class PlayByPlayEvent(Base):
     lineup_home_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     lineup_away_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     raw_payload_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+# ----------------------------
+# v1: stats_player_game
+# ----------------------------
+class StatsPlayerGame(Base):
+    __tablename__ = "stats_player_game"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id"), nullable=False, index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+
+    # core box-style fields (extend later)
+    minutes: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    assists: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rebounds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # optional advanced fields (v1 stubs)
+    threes_made: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ortg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    drtg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ts_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pace: Mapped[float | None] = mapped_column(Float, nullable=True)

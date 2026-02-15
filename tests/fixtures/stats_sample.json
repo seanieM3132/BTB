@@ -1,0 +1,28 @@
+﻿{
+  "league": "NBA",
+  "season": "2025",
+  "games": [
+    {
+      "external_id": "game_props_1",
+      "commence_time": "2026-02-20T09:00:00Z",
+      "home_team": "Boston Celtics",
+      "away_team": "Miami Heat",
+      "players": [
+        {
+          "player": "Jayson Tatum",
+          "minutes": 36.0,
+          "points": 30,
+          "rebounds": 9,
+          "assists": 6
+        },
+        {
+          "player": "Jimmy Butler",
+          "minutes": 34.5,
+          "points": 24,
+          "rebounds": 7,
+          "assists": 5
+        }
+      ]
+    }
+  ]
+}
