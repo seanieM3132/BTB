@@ -3,7 +3,7 @@
 import datetime
 import typer
 
-from btb.data_sources import odds_registry
+from btb.data_sources import odds_registry, props_registry
 from btb.research import queries_props
 
 app = typer.Typer(help="Phase 1: research backbone commands")
@@ -27,6 +27,15 @@ def ingest_odds_fixture(
 ) -> None:
     """Ingest odds from a saved JSON fixture and normalize into DB."""
     result = odds_registry.ingest_odds_from_fixture(path, league=league)
+    typer.echo(result)
+
+
+@app.command("ingest-props-fixture")
+def ingest_props_fixture(
+    path: str = typer.Argument(..., help="Path to props JSON fixture"),
+) -> None:
+    """Ingest player props from a saved JSON fixture and normalize into DB."""
+    result = props_registry.ingest_props_from_fixture(path)
     typer.echo(result)
 
 
