@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btb"
+version = "0.1.0"
+description = "BTB - Pro-grade betting research lab"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "typer[all]",
+  "sqlalchemy",
+  "pydantic",
+  "python-dotenv",
+  "apscheduler"
+]
+
+[project.scripts]
+btb = "btb.cli.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
